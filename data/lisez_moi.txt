@@ -1,0 +1,41 @@
+Ce dossier contient différents fichier fournis pour le contrat de modélisation de la crevette du golfe des stocks de Sept-Iles(ZPC 10), Anticosti(ZPC 9) et Esquiman(ZPC 8). 
+La ZPC 12 est aussi généralement présente dans les documents, mais il n'est pas prévu que celle-ci soit modélisée. 
+Autant que possible, les données sont mise à jour avec les données de 2023 et calculées pour tenir compte des strates supplémentaires depuis 2008 et de la nouvelle définition des stocks proposée dans: 
+
+Bourdages, H., Bourret, A. et Parent, G. J. 2023. 
+Délimitation des unités d’évaluation des stocks de crevette nordique de l’estuaire et du nord du golfe du Saint-Laurent. 
+Secr. can. des avis sci. du MPO. Doc. de rech. 2023/082. vi + 31 p.
+
+
+La description des données à fournir est:
+1) Time series of northern shrimp biomass and demersal predatory fish biomass from an annual bottom trawl survey of the GSL. 
+2) Biological data on northern shrimp collected in the annual survey to inform length and/or stage-based approaches
+3) Time series of total shrimp landings in commercial fisheries in the GSL.
+4) Time series of physical oceanographic conditions in the bottom water layer (northern shrimp habitat) in the GSL. 
+
+
+Pour chacun des points, les fichier fournis sont:
+
+1a) 
+biomasse.csv = les biomasse par classe pour la série des relevés scientifiques au chalut. Les colonnes d'intérêt devraient être "zone", "annee", "male", "primipare", "multipare". Provient de :
+\\ENT.dfo-mpo.ca\DFO-MPO\HOME\QUE\IML\bourdagesh\Crevette_new\NGSL\Data\biomasse.csv
+
+1b) 
+NGSLxxx_pue.csv = les densités de 4 principaux prédateurs (morue=438, turbot=892, sebastes mentella=794, sebastes fasciatus=796) estimés pour l'ensemble du NGSL par les relevés scientifique au chalut. 
+Les colonnes d'intérêt devraient être "annee" et "pds_mean". Provient de :
+\\ENT.dfo-mpo.ca\DFO-MPO\GROUP\QUE\IML\DFO\Public\MissionNGSL\Analyse\Data\NGSLxxx_pue.csv
+
+2) 
+fl_zone_sexe2_abd.csv soit les données de composition par année dans les relevés scientifiques au chalut, zone (ZPC %in% c(8,9,10)), stade (fm=femelles multipares, fp=femelles primipares, ma=males), et classe de taille (lc) de 0.5mm.
+Les colonnes d'intérêt devraient être "annee", "zone", "sexe2", "lc" et "abd_lc". Provient de :
+\\ENT.dfo-mpo.ca\DFO-MPO\HOME\QUE\IML\bourdagesh\Crevette_new\NGSL\Data\fl_zone_sexe2_abd.csv
+
+3) 
+debnew.csv = les débarquements par année et zone. Les données de débarquement pourraient être fournies sur demande à partir de 1965 dans certaines zone, mais la définition de celles-ci pourrait être imprécise. Provient de :
+\\ENT.dfo-mpo.ca\DFO-MPO\HOME\QUE\IML\bourdagesh\Crevette\ZIFF\Analyse\Resultat\debnew.csv
+fl_annee.csv = la composition des débarquements, par année et zone. Les colonnes d'intérêt devraient être "zpc", "annee", "lc", "ma", "fp" et "fm". Provient de :
+\\ENT.dfo-mpo.ca\DFO-MPO\HOME\QUE\IML\bourdagesh\Crevette\EchComm\Analyse\Resultat\fl_annee.csv
+Ces deux derniers fichiers sont aussi disponible désagrégés par mois, sur demande.
+
+4) 
+À venir.

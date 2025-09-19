@@ -5,46 +5,72 @@
 ##
 ## ####
 
-require('RTMB')
+library('RTMB')
+library('here')
 
-sourceGenerale <- file.path('//dcqcimlna01a','Projets','AP_INV','modele_crevette_drouineau2012')
-anneesFittees <- 1990:2023
+anneesFittees <- 1990:2007
+origineDonnees <- ifelse(TRUE, 'drou2012', '') #TRUE si données de drouineau2012, FALSE sinon
 
 ## charger les données
-calculerData <- function(annees=1990:2023, new_strata=0){
+calculerData <- function(annees=1990:2007, new_strata=0){
     ## lecture des fichiers d'observation
-    fl_abond <- read.csv2(file=file.path(sourceGenerale, 'data', 'fl_zone_sexe2_abd.csv'), dec='.')
     ##
     data <- list()
-    data$anneesFittees <- annees
+    data$anneesFittees <- annees; names(data$anneesFittees) <- data$anneesFittees
     data$nbAge <- 4 #age max de mâles, changement de sexe obligatoire ensuite
-    data$midTaille <- unique(fl_abond$lc)
-    data$nbMoisParSaison <- c(2,3,3,4)            #printemps=c(avril,mai), ete=c(juin:aout), automne=c(sept:nov), hiver=c(dec:mars)
+    data$saisons <- as.data.frame(list(nom=c('a','b','c','d'), nbMois=c(2,3,4,3))); dimnames(data$saisons)[[1]] <- data$saisons$nom
+    data$midTaille <- seq(0, 29.5, by=0.5)+0.25; names(data$midTaille) <- data$midTaille #classe de tailles de 0.5cm
     ##
-    data$fl_abond_male <- subset(fl_abond, sexe2=='ma' & annee%in%data$anneesFittees & newstrata==new_strata, select=c('annee','zone','lc','abd_lc','newstrata'))
     ##
     ## 4 saison ("pas de temp") débutant au printemps
     data$nbPasDeTemps <- length(data$anneesFittees)*4
-    data$effort <- rep(NA, data$nbPasDeTemps)
+    temp <- expand.grid(annee=anneesFittees,saison=data$saisons$nom)
+    temp <- temp[order(temp$annee, temp$saison),]
+    temp$nom <- paste0(temp$annee, temp$saison)
+    data$nomPasDeTemps <- temp
+    ## effort commercial
+    effort.init <- read.csv2(file=here('data', origineDonnees, 'effort_comm.csv'))
+    effort.init$val <- effort.init$effort; effort.init$effort <- NULL
+    effort.init$saison <- c('a','b','c','d')[effort.init$saison]
+    data$effort_comm <- effort.init
+    ##
+    fl_abond.init <- read.csv2(file=here('data', origineDonnees, 'dfl_rel.csv'))
+    fl_abond.male <- fl_abond.init[,1:2]; fl_abond.male$mids <- as.numeric(substr(dimnames(fl_abond.init)[[2]][3],2,10)); fl_abond.male$val <- fl_abond.init[,3]
+    for(i.cl in 4:(ncol(fl_abond.init)-3)){
+        temp <- fl_abond.init[,1:2]
+        temp$mids <- as.numeric(substr(dimnames(fl_abond.init)[[2]][i.cl],2,10))
+        temp$val <- fl_abond.init[,i.cl]
+        fl_abond.male <- rbind(fl_abond.male, temp)
+    }
+    data$fl_rel.male <- fl_abond.male
+    ##
+    fl_abond.femelle <- fl_abond.init[,1:2]; fl_abond.femelle$stade <- 'femelle'; fl_abond.femelle$val <- fl_abond.init[,'femelles']
+    for(i.cl in c('primi','multi')){
+        temp <- fl_abond.init[,1:2]
+        temp$stade <- i.cl
+        temp$val <- fl_abond.init[,i.cl]
+        fl_abond.femelle <- rbind(fl_abond.femelle, temp)
+    }
+    data$fl_rel.femelle <- fl_abond.femelle
     ##
     data
 }
-data <- calculerData(annees=1990:2023)
+data <- calculerData(annees=1990:2007)
 
 calculerParam <- function(data){
     param <- list()
     param$log_valLinf <- log(26)
     param$log_valK <- log(0.38)
-    param$trans_mu1 <- rep(qlogis((10-4)/16), length(data$anneesFittees)+data$nbAge)
+    param$trans_mu1 <- rep(qlogis((10-4)/16), length(data$anneesFittees)+data$nbAge-1); names(param$trans_mu1) <- (min(data$anneesFittees)-data$nbAge+1):max(data$anneesFittees)
     param$log_tailleCV <- log(0.1)
     param$log_valRsex <- log(10)
-    param$log_l50sex <- rep(log(20), length(data$anneesFittees))
+    param$log_l50sex <- rep(log(20), length(data$anneesFittees)); names(param$log_l50sex) <- data$anneesFittees
     param$log_M <- log(0.5)
     param$log_valRselComm <- log(10)
     param$log_vall50selComm <- log(20)
-    param$log_qComm <- rep(log(0.1), length(data$anneesFittees)*4)
+    param$log_qComm <- rep(log(0.00001), nrow(data$nomPasDeTemps)); names(param$log_qComm) <- data$nomPasDeTemps$nom
     param$log_valTarget <- log(1.5)
-    param$log_recrutement <- rep(log(1e8), length(data$anneesFittees))
+    param$log_recrutement <- rep(log(1e8), length(data$anneesFittees)); names(param$log_recrutement) <- data$anneesFittees
     param$log_Nmale0 <- rep(log(1e7), data$nbAge-1)
     param$log_Nprimi0 <- log(1e7)
     param$log_Nmulti0 <- log(1e7)
@@ -75,10 +101,16 @@ struct_taille <- function(val){
     }
 }
 
+
+
 ## modèle d'analyse modale
+##
+## le N est au début de la saison
+## les tailles sont celles au début de la saison, soit les N distribué normalement autour de mu
+## les sélectivités sont appliquées sur les tailles et transférés à N
+##
 fnll <- function(param, fit=TRUE){
     getAll(param, data)
-    nbAn <- length(anneesFittees)
 
     ## croissance
     valLinf <- exp(log_valLinf)
@@ -96,19 +128,17 @@ fnll <- function(param, fit=TRUE){
     ## sélectivité commercial (male uniquement)
     valRselComm <- exp(log_valRselComm)
     vall50selComm <- exp(log_vall50selComm)
-    selCommMale <- 1 / (1 + exp(-2*log(3)/valRselComm * (1:length(midTaille) - vall50selComm)))
+    selCommMale <- 1 / (1 + exp(-2*log(3)/valRselComm * (midTaille - vall50selComm)))
 
     ## mortalité par la pêche
     ##
-
-    ##
-    ## attention: ici, la capturabilité commerciale est par pas de temps, et non année
-    ##
-
     qComm <- exp(log_qComm) #marche aléatoire
-    Fmale <- array(NA, dim=c(length(midTaille), nbPasDeTemps))
-    for(i.long in 1:length(midTaille)){
-        Fmale[i.long,] <- qComm * selCommMale[i.long] * effort
+    Fmale <- array(NA, dim=c(length(midTaille), length(anneesFittees), nrow(saisons)), dimnames=list(clTaille=midTaille, annee=anneesFittees, saison=saisons$nom))
+    for(i.an in anneesFittees){
+        for(i.saison in saisons$nom){
+            step <- nomPasDeTemps[nomPasDeTemps$annee==i.an & nomPasDeTemps$saison==i.saison, 'nom']
+            Fmale[,as.character(i.an),i.saison] <- qComm[step] * selCommMale[] * effort_comm[effort_comm$annee==i.an & effort_comm$saison==i.saison,'val']
+        }
     }
     ## Fprimi <- qComm * effort
     ## valTarget <- exp(log_valTarget)
@@ -120,33 +150,39 @@ fnll <- function(param, fit=TRUE){
     ## }
 
     ## survie
-    ##
-    ## attention: dans la survie, considérer le nombre de mois réel
-
-    SrMale <- array(NA, dim=c(length(midTaille), nbPasDeTemps))
-    for(i.step in 1:nbPasDeTemps){
-        SrMale[,i.step] <- exp(-(M + Fmale[,i.step])*1/4)
+    SrMale <- array(NA, dim=c(length(midTaille), length(anneesFittees), nrow(saisons)), dimnames=list(clTaille=midTaille, annee=anneesFittees, saison=saisons$nom))
+    for(i.an in anneesFittees){
+        for(i.saison in saisons$nom){
+            SrMale[,as.character(i.an),i.saison] <- exp(-(M + Fmale[,as.character(i.an),i.saison])*1/saisons[i.saison,'nbMois'])
+        }
     }
     ## SrPrimi <- exp(-(M + Fprimi)*1/4)
     ## SrMulti <- exp(-(M + FMulti)*1/4)
 
     ## changement de sex
-    propCsex <- array(0, dim=c(length(midTaille), nbAn)
+    propCsex <- array(0, dim=c(length(midTaille), length(anneesFittees)))
     for(i.long in 1:length(midTaille)){
         propCsex[i.long,] <- 1 / (1 + exp(-2*log(3)/valRsex * (i.long - l50sex)))
     }
 
-
     ## longueur à l'age, pour chaque cohorte et pas de temps
-    laa <- array(NA, dim=c(nbAn+nbAge, nbAge*4),
-                 dimnames=list(cohorte=c(min(data$anneesFittees)+c(-nbAge:-1),data$anneesFittees), pasDeTemp=sprintf("%d%s", rep(1:nbAge, each=4), rep(c('A','B','C','D'), nbAge))))
+
+    ## attention
+    ## continuer ici, non fonctionnel!!!!!!
+    ##
+
+
+    laa <- array(NA, dim=c(length(mu1), nbAge*4),
+                 dimnames=list(cohorte=names(mu1), pasDeTemp=sprintf("%d%s", rep(1:nbAge, each=4), rep(saisons$nom, nbAge))))
     laa[,1] <- mu1
-    for(i.step in 2:(nbAge*4)){
-        laa[,i.step] <- laa[,i.step-1] + (valLinf-laa[,1]) * (1-exp(-valK*(nbMoisParSaison[(i.step-2)%%4+1]/12)))
+    for(i.age in 2:nbAge){
+        for(i.saison in saisons$nom){
+            step <- paste0(i.age,i.saison)
+            laa[,step] <- laa[,i.step-1] + (valLinf-laa[,1]) * (1-exp(-valK*(nbMois.saison[(i.step-2)%%4+1]/12)))
     }
 
     NmaleAge <- array(NA, dim=c(nbAge, nbPasDeTemps), dimnames=list(age=1:nbAge, temps=1:nbPasDeTemps)) #au début du pas de temps
-    NmaleAgeTaille <- array(NA, dim=c(nbAge, nbPasDeTemps, length(midTaille)), dimnames=list(age=1:nbAge, temps=1:nbPasDeTemps, taille=midTaille)) #une fois la croissance et la mortalité appliquée
+    NmaleAgeTaille <- array(NA, dim=c(nbAge, nbPasDeTemps, length(midTaille)), dimnames=list(age=1:nbAge, temps=1:nbPasDeTemps, taille=midTaille)) #au début du pas de temps, avant la croissance et la mortalité
     ## Nprimi <- rep(NA, nbPasDeTemps)
     ## Nmulti <- rep(NA, nbPasDeTemps)
     ## recrutement (au printemps)

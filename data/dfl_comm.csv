@@ -1,9 +1,0 @@
-﻿38;#nombres classes males;;;
-4;#plus vielles classes d'âge males;;;
-18;#nombre d'annees d'ajustement;;;
-3;#nombre d'annees de projections;;;
-4;#nombre de saison par an;;;
-2;3;4;3;#duree des saisons en mois (on commence au printemps)
-1;#nombre d'indices (survey);;;
-8;#plus petite borne inf des classes de longueur;;;
-0,5;#largeur des classes de longueur;;;

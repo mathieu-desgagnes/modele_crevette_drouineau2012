@@ -20,3 +20,13 @@ de la méthodologie.
 > *Drouineau & al. 2012*
 
 Le modèle de dynamique de population proposé par Drouineau&al. 2012 est appliqué aux données récentes des stocks de crevette du NGSL.
+
+#Structure du modèle
+
+Le modèle utilise un pas de temps saisonnier. 
+Quatre saisons, de 2 mois, 3 mois, 3 mois et 4 mois.
+
+Le modèle suit séparément les mâles et les femelles.
+La composante male est sturcturée à l'age et à la longueur.
+La composante femelles est structurée en stade, primipare (durant une années) et multipare (classe plus).
+

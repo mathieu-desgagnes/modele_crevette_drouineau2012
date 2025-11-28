@@ -172,25 +172,27 @@ fnll <- function(param, fit=TRUE){
     ##
 
 
-    laa <- array(NA, dim=c(length(mu1), nbAge*4),
-                 dimnames=list(cohorte=names(mu1), pasDeTemp=sprintf("%d%s", rep(1:nbAge, each=4), rep(saisons$nom, nbAge))))
-    laa[,1] <- mu1
+    laa <- array(NA, dim=c(length(mu1), nbAge, nrow(saisons)),
+                 dimnames=list(cohorte=names(mu1), age=1:nbAge, saison=saisons$nom))
+    laa[,1,'a'] <- mu1
     for(i.age in 2:nbAge){
-        for(i.saison in saisons$nom){
-            step <- paste0(i.age,i.saison)
-            laa[,step] <- laa[,i.step-1] + (valLinf-laa[,1]) * (1-exp(-valK*(nbMois.saison[(i.step-2)%%4+1]/12)))
+        for(i.saison in 2:nrow(saisons)){
+            laa[,i.age,saisons[i.saison,'nom']] <- laa[,i.age,saisons[i.saison-1,'nom']] + (valLinf-laa[,i.step-1]) * (1-exp(-valK*(nbMois/12)))
+        }
     }
 
-    NmaleAge <- array(NA, dim=c(nbAge, nbPasDeTemps), dimnames=list(age=1:nbAge, temps=1:nbPasDeTemps)) #au début du pas de temps
-    NmaleAgeTaille <- array(NA, dim=c(nbAge, nbPasDeTemps, length(midTaille)), dimnames=list(age=1:nbAge, temps=1:nbPasDeTemps, taille=midTaille)) #au début du pas de temps, avant la croissance et la mortalité
+    NmaleAge <- array(NA, dim=c(length(anneesFittees), nrow(saisons), nbAge), dimnames=list(annee=anneesFittees, saison=saisons$nom, age=1:nbAge)) #au début du pas de temps
+    NmaleAgeTaille <- array(NA, dim=c(length(anneesFittees), nrow(saisons), nbAge, length(midTaille)),
+                            dimnames=list(annee=anneesFittees, saison=saisons$nom, age=1:nbAge, taille=midTaille)) #au début du pas de temps, avant la croissance et la mortalité
     ## Nprimi <- rep(NA, nbPasDeTemps)
     ## Nmulti <- rep(NA, nbPasDeTemps)
     ## recrutement (au printemps)
-    NmaleAge[1,1] <- exp(log_recrutement[1])
-    for(i.step in 1){
-        NmaleAgeTaille[1,i.step,] <- (pnorm(midTaille+0.25, mean=laa[1,i.step], sd=tailleCV*laa[1,i.step]) -
-                                      pnorm(midTaille-0.25, mean=laa[1,i.step], sd=tailleCV*laa[1,i.step])) *
-            NmaleAge[1,i.step]
+    NmaleAge[,'a',1] <- exp(log_recrutement)
+    for(i.an in 1){
+        for(i.saison in 'a'){
+            NmaleAgeTaille[i.an, i.saison,1] <- (pnorm(midTaille+0.25, mean=laa[1,i.step], sd=tailleCV*laa[1,i.step]) -
+                                                 pnorm(midTaille-0.25, mean=laa[1,i.step], sd=tailleCV*laa[1,i.step])) *
+                NmaleAge[1,i.step]
     }
     ## année 0 (pas de temps 1, printemps)
     NmaleAge[2:nbAge,1] <- exp(log_Nmale0)
